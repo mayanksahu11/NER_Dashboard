@@ -18,6 +18,8 @@ Interactive dashboard for the `*_Report.md` NER benchmark reports in this folder
 ```
 
 ## Usage
+
+### Local (auto-refresh on new files)
 1. Start the server:
    ```
    python serve.py
@@ -26,8 +28,18 @@ Interactive dashboard for the `*_Report.md` NER benchmark reports in this folder
 3. Drop a new `*_Report.md` file into this folder and **refresh the browser** — it appears
    automatically. The manifest is rebuilt on every request; no server restart needed.
 
+### Hosted on GitHub Pages
+A workflow at `.github/workflows/pages.yml` regenerates `manifest.json` and deploys the
+folder to GitHub Pages on every push to `main`. One-time setup:
+
+1. Push the repo to GitHub.
+2. In the repo → **Settings → Pages**, set **Source** to **GitHub Actions**.
+3. Any subsequent `git push` (including new reports) auto-deploys.
+   Live URL will be shown in the workflow run, typically:
+   `https://<user>.github.io/<repo>/`
+
 ## Files
 - `index.html` — the dashboard (vanilla JS + Chart.js via CDN)
-- `serve.py` — tiny HTTP server that generates `manifest.json` dynamically on each request
-- `build_manifest.py` — optional: writes a static `manifest.json` (only needed if you host
-  the folder with a plain static server that can't run Python)
+- `serve.py` — tiny HTTP server that generates `manifest.json` dynamically on each request (local dev)
+- `build_manifest.py` — writes a static `manifest.json`; used by the Pages workflow and as a fallback for any plain static host
+- `.github/workflows/pages.yml` — GitHub Pages deployment
