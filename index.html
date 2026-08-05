@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>NER Report Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #111827; --panel2: #1f2937;
+    --text: #e5e7eb; --muted: #9ca3af; --border: #374151;
+    --accent: #38bdf8; --accent2: #a78bfa;
+    --good: #22c55e; --bad: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); }
+  header { padding: 18px 24px; background: linear-gradient(135deg, #0b1220, #111827);
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  h1 { margin: 0 0 10px; font-size: 20px; letter-spacing: .3px; }
+  .controls { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  select { background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    padding: 8px 10px; border-radius: 6px; min-width: 200px; font-size: 14px; }
+  main { padding: 20px 24px 60px; max-width: 1400px; margin: 0 auto; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; margin-bottom: 20px; }
+  .card h2 { margin: 0 0 12px; font-size: 15px; color: var(--accent); }
+  .card h3 { margin: 12px 0 8px; font-size: 13px; color: var(--accent2); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { background: var(--panel2); color: var(--muted); font-weight: 600;
+    position: sticky; top: 0; }
+  tbody tr:hover { background: rgba(56, 189, 248, 0.06); }
+  .lang-title { font-weight: 600; color: var(--accent2); }
+  .best { color: var(--good); font-weight: 600; }
+  .worst { color: var(--bad); }
+  .up { color: var(--good); font-weight: 600; }
+  .down { color: var(--bad); font-weight: 600; }
+  th[title] { cursor: help; text-decoration: underline dotted var(--muted); }
+  .glossary summary { cursor: pointer; color: var(--accent); font-size: 14px;
+    list-style: none; user-select: none; }
+  .glossary summary::-webkit-details-marker { display: none; }
+  .glossary summary::before { content: "▾ "; color: var(--muted); }
+  .glossary:not([open]) summary::before { content: "▸ "; }
+  .gloss-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 12px; }
+  @media (max-width: 800px) { .gloss-grid { grid-template-columns: 1fr; } }
+  .gloss-grid h3 { margin: 0 0 8px; font-size: 13px; color: var(--accent2);
+    text-transform: uppercase; letter-spacing: .08em; }
+  .gloss-grid ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; }
+  .gloss-grid li { margin-bottom: 4px; }
+  .gloss-grid b { color: var(--text); }
+  .gloss-grid em { color: var(--muted); font-style: italic; }
+  .gloss-grid .hint { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+  .lang-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 1100px) { .lang-section { grid-template-columns: 1fr; } }
+  .chart-wrap { position: relative; height: 320px; }
+  .empty { color: var(--muted); font-style: italic; padding: 24px; text-align: center; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px;
+    background: var(--panel2); border: 1px solid var(--border); font-size: 11px;
+    color: var(--muted); margin-left: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NER Report Dashboard <span id="meta-badge" class="badge"></span></h1>
+  <div class="controls">
+    <div class="field">
+      <label for="classifier">NER Classifier</label>
+      <select id="classifier"></select>
+    </div>
+    <div class="field">
+      <label for="date">Date</label>
+      <select id="date"></select>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="meta" class="meta"></div>
+  <details class="card glossary" open>
+    <summary><b>Metric glossary</b> — click to collapse</summary>
+    <div class="gloss-grid">
+      <div>
+        <h3>Match categories</h3>
+        <ul>
+          <li><b>Correct (COR)</b> — predicted entity exactly matches a gold entity (same span <em>and</em> type).</li>
+          <li><b>Partial (PAR)</b> — predicted span overlaps a gold span but isn't identical (boundaries differ).</li>
+          <li><b>Spurious (SPU)</b> — model predicted an entity where the gold has none (false positive).</li>
+          <li><b>Missed (MIS)</b> — a gold entity that the model failed to predict (false negative).</li>
+        </ul>
+        <p class="hint">Higher <b>COR</b> is better. Higher <b>SPU</b> / <b>MIS</b> is worse.</p>
+      </div>
+      <div>
+        <h3>Evaluation mode</h3>
+        <ul>
+          <li><b>Strict (S)</b> — both the entity boundary <em>and</em> its type must match exactly. This dashboard focuses on the strict metrics only.</li>
+        </ul>
+        <p class="hint">Reported as <b>S-P</b> = Strict Precision, <b>S-R</b> = Strict Recall, <b>S-F1</b> = Strict F1 (harmonic mean).</p>
+      </div>
+    </div>
+  </details>
+  <div id="content"></div>
+</main>
+
+<script>
+const state = { manifest: null, current: null, charts: [] };
+
+const LANG_NAMES = {
+  ar: 'Arabic', cs: 'Czech', de: 'German', en: 'English', es: 'Spanish',
+  fr: 'French', he: 'Hebrew', hi: 'Hindi', hu: 'Hungarian', it: 'Italian',
+  ja: 'Japanese', ko: 'Korean', la: 'Latin', lb: 'Luxembourgish', nl: 'Dutch',
+  pl: 'Polish', pt: 'Portuguese', th: 'Thai', zh: 'Chinese',
+  ru: 'Russian', tr: 'Turkish', vi: 'Vietnamese', id: 'Indonesian',
+  sv: 'Swedish', no: 'Norwegian', da: 'Danish', fi: 'Finnish', el: 'Greek',
+  uk: 'Ukrainian', ro: 'Romanian', bg: 'Bulgarian', sk: 'Slovak',
+  sl: 'Slovenian', hr: 'Croatian', sr: 'Serbian', et: 'Estonian',
+  lv: 'Latvian', lt: 'Lithuanian', ca: 'Catalan', eu: 'Basque',
+  gl: 'Galician', is: 'Icelandic', ga: 'Irish', cy: 'Welsh', mt: 'Maltese',
+  fa: 'Persian', ur: 'Urdu', bn: 'Bengali', ta: 'Tamil', te: 'Telugu',
+  ml: 'Malayalam', kn: 'Kannada', mr: 'Marathi', gu: 'Gujarati',
+  pa: 'Punjabi', si: 'Sinhala', my: 'Burmese', km: 'Khmer', lo: 'Lao',
+  ms: 'Malay', tl: 'Tagalog', sw: 'Swahili', am: 'Amharic', yo: 'Yoruba',
+  zu: 'Zulu', af: 'Afrikaans', mk: 'Macedonian', sq: 'Albanian',
+  hy: 'Armenian', ka: 'Georgian', az: 'Azerbaijani', kk: 'Kazakh',
+  uz: 'Uzbek', mn: 'Mongolian', ne: 'Nepali',
+};
+
+function langLabel(code) {
+  const name = LANG_NAMES[code?.toLowerCase?.()];
+  return name ? `${name} (${code})` : code;
+}
+
+async function boot() {
+  try {
+    const r = await fetch('manifest.json', { cache: 'no-store' });
+    state.manifest = await r.json();
+  } catch (e) {
+    document.getElementById('content').innerHTML =
+      `<div class="empty">Could not load <code>manifest.json</code>. Run <code>python build_manifest.py</code> and serve this folder via <code>python -m http.server</code>.</div>`;
+    return;
+  }
+  const reports = state.manifest.reports || [];
+  if (reports.length === 0) {
+    document.getElementById('content').innerHTML = `<div class="empty">No reports found.</div>`;
+    return;
+  }
+  populateClassifiers();
+  document.getElementById('classifier').addEventListener('change', () => { populateDates(); loadSelected(); });
+  document.getElementById('date').addEventListener('change', loadSelected);
+  populateDates();
+  loadSelected();
+}
+
+function populateClassifiers() {
+  const classifiers = [...new Set(state.manifest.reports.map(r => r.classifier))].sort();
+  const sel = document.getElementById('classifier');
+  sel.innerHTML = classifiers.map(c => `<option value="${c}">${c}</option>`).join('');
+  // Default: classifier of the latest overall report
+  const latest = [...state.manifest.reports].sort((a, b) => b.date.localeCompare(a.date))[0];
+  sel.value = latest.classifier;
+}
+
+function populateDates() {
+  const c = document.getElementById('classifier').value;
+  const dates = state.manifest.reports
+    .filter(r => r.classifier === c)
+    .sort((a, b) => b.date.localeCompare(a.date)); // latest first
+  const sel = document.getElementById('date');
+  sel.innerHTML = dates.map(d => `<option value="${d.date}">${d.date_label}</option>`).join('');
+  sel.value = dates[0].date; // default latest
+}
+
+async function loadSelected() {
+  const c = document.getElementById('classifier').value;
+  const d = document.getElementById('date').value;
+  const entry = state.manifest.reports.find(r => r.classifier === c && r.date === d);
+  if (!entry) return;
+  document.getElementById('meta-badge').textContent = entry.file;
+  try {
+    const r = await fetch(entry.file, { cache: 'no-store' });
+    const md = await r.text();
+    render(parseReport(md), entry);
+  } catch (e) {
+    document.getElementById('content').innerHTML =
+      `<div class="empty">Failed to load ${entry.file}: ${e.message}</div>`;
+  }
+}
+
+function parseReport(md) {
+  const lines = md.split(/\r?\n/);
+  const result = { title: '', date: '', settings: '', overall: null, perLang: [] };
+  let currentHeading = null;
+  let buffer = [];
+
+  const flush = () => {
+    if (!currentHeading || buffer.length === 0) { buffer = []; return; }
+    const table = parseTable(buffer);
+    if (table) {
+      if (currentHeading.toLowerCase() === 'overall') {
+        result.overall = table;
+      } else {
+        // Per-language headings like "### en (gold=4259)"
+        const m = currentHeading.match(/^(\S+)\s*(?:\(gold=(\d+)\))?/);
+        result.perLang.push({
+          lang: m ? m[1] : currentHeading,
+          gold: m && m[2] ? parseInt(m[2], 10) : null,
+          table,
+        });
+      }
+    }
+    buffer = [];
+  };
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (line.startsWith('# ')) { result.title = line.slice(2).trim(); continue; }
+    if (line.startsWith('## Date')) { result.date = line.replace(/^## Date\s*-?\s*/, '').trim(); continue; }
+    if (line.startsWith('Settings')) { result.settings = line; continue; }
+    if (line.startsWith('## ')) { flush(); currentHeading = line.slice(3).trim(); continue; }
+    if (line.startsWith('### ')) { flush(); currentHeading = line.slice(4).trim(); continue; }
+    if (line.startsWith('|')) { buffer.push(line); }
+    else if (buffer.length && line.trim() === '') { flush(); }
+  }
+  flush();
+  return result;
+}
+
+function parseTable(lines) {
+  const rows = lines.filter(l => l.startsWith('|')).map(l =>
+    l.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
+  );
+  if (rows.length < 2) return null;
+  const rawHeader = rows[0];
+  // Focus on strict metrics only — drop Partial (P-*) and Type-match (T-*) columns.
+  const keepIdx = rawHeader.map((h, i) => (i === 0 || !/^[PT]-/.test(h)) ? i : -1)
+    .filter(i => i !== -1);
+  const header = keepIdx.map(i => rawHeader[i]);
+  const dataRows = rows.slice(2).map(r => {
+    const obj = { _raw: r };
+    header.forEach((h, j) => { obj[h] = r[keepIdx[j]]; });
+    return obj;
+  });
+  return { header, rows: dataRows };
+}
+
+function render(rep, entry) {
+  // destroy previous charts
+  state.charts.forEach(c => c.destroy());
+  state.charts = [];
+
+  const root = document.getElementById('content');
+  document.getElementById('meta').innerHTML =
+    `<b>${escapeHtml(rep.title || 'Report')}</b> &middot; Date: ${escapeHtml(rep.date || entry.date_label)}
+     &middot; Classifier: <b>${escapeHtml(entry.classifier)}</b>
+     ${rep.settings ? `<br/><span style="color:var(--muted)">${escapeHtml(rep.settings)}</span>` : ''}`;
+
+  let html = '';
+
+  if (rep.overall) {
+    html += `<div class="card"><h2>Overall</h2>
+      <div class="grid">
+        <div>${tableHtml(rep.overall, true)}</div>
+        <div><div class="chart-wrap"><canvas id="overallChart"></canvas></div></div>
+      </div>
+    </div>`;
+  }
+
+  if (rep.perLang.length) {
+    html += `<div class="card"><h2>Per-language F1 comparison</h2>
+      <div class="chart-wrap" style="height:380px"><canvas id="perLangChart"></canvas></div>
+    </div>`;
+
+    html += `<div class="card"><h2>Per-language details</h2><div class="lang-section">`;
+    for (const pl of rep.perLang) {
+      html += `<div>
+        <h3 class="lang-title">${escapeHtml(langLabel(pl.lang))}${pl.gold != null ? ` <span class="badge">gold=${pl.gold}</span>` : ''}</h3>
+        ${tableHtml(pl.table, true)}
+      </div>`;
+    }
+    html += `</div></div>`;
+  }
+
+  root.innerHTML = html || `<div class="empty">Report has no tables.</div>`;
+
+  if (rep.overall) drawOverall(rep.overall);
+  if (rep.perLang.length) drawPerLang(rep.perLang);
+}
+
+function tableHtml(t, highlight) {
+  const headers = t.header;
+  const numericCols = headers.map((h, i) => i > 0);
+  // Baseline = first data row (e.g. opentext). Compare subsequent rows to it.
+  const baseline = t.rows[0];
+  const headerMeta = {
+    'COR': { label: 'Correct',  title: 'COR — exact match with gold entity' },
+    'PAR': { label: 'Partial',  title: 'PAR — partial overlap with gold entity' },
+    'SPU': { label: 'Spurious', title: 'SPU — predicted entity not present in gold' },
+    'MIS': { label: 'Missed',   title: 'MIS — gold entity that was not predicted' },
+    'S-P': { label: 'S-P', title: 'Strict Precision' },
+    'S-R': { label: 'S-R', title: 'Strict Recall' },
+    'S-F1':{ label: 'S-F1', title: 'Strict F1' },
+    'P-P': { label: 'P-P', title: 'Partial Precision' },
+    'P-R': { label: 'P-R', title: 'Partial Recall' },
+    'P-F1':{ label: 'P-F1', title: 'Partial F1' },
+    'T-P': { label: 'T-P', title: 'Type-match Precision' },
+    'T-R': { label: 'T-R', title: 'Type-match Recall' },
+    'T-F1':{ label: 'T-F1', title: 'Type-match F1' },
+  };
+  const thead = `<thead><tr>${headers.map(h => {
+    const meta = headerMeta[h];
+    return meta
+      ? `<th title="${escapeHtml(meta.title)}">${escapeHtml(meta.label)}</th>`
+      : `<th>${escapeHtml(h)}</th>`;
+  }).join('')}</tr></thead>`;
+  const tbody = `<tbody>${t.rows.map((r, rowIdx) =>
+    `<tr>${headers.map((h, i) => {
+      const v = r[h] ?? '';
+      let cls = '';
+      if (highlight && numericCols[i] && rowIdx > 0 && baseline) {
+        const num = parseFloat(v);
+        const base = parseFloat(baseline[h]);
+        if (!isNaN(num) && !isNaN(base) && num !== base) {
+          // For SPU/MIS lower is better, so invert the direction.
+          const lowerIsBetter = (h === 'SPU' || h === 'MIS');
+          const better = lowerIsBetter ? (num < base) : (num > base);
+          cls = better ? 'up' : 'down';
+        }
+      }
+      return `<td class="${cls}">${escapeHtml(v)}</td>`;
+    }).join('')}</tr>`
+  ).join('')}</tbody>`;
+  return `<div style="overflow-x:auto"><table>${thead}${tbody}</table></div>`;
+}
+
+function drawOverall(overall) {
+  const ctx = document.getElementById('overallChart');
+  if (!ctx) return;
+  const metrics = ['S-P', 'S-R', 'S-F1'];
+  const available = metrics.filter(m => overall.header.includes(m));
+  const modelCol = overall.header[0];
+  const models = overall.rows.map(r => r[modelCol]);
+  const baselineRow = overall.rows[0];
+  const baselineVals = available.map(k => parseFloat(baselineRow[k]) || 0);
+  const datasets = models.map((m, idx) => {
+    if (idx === 0) {
+      return {
+        label: m + ' (baseline)',
+        data: baselineVals,
+        backgroundColor: 'rgba(148,163,184,0.7)',
+        borderColor: '#94a3b8',
+        borderWidth: 1,
+      };
+    }
+    const values = available.map(k => parseFloat(overall.rows[idx][k]) || 0);
+    const colors = values.map((v, i) =>
+      v > baselineVals[i] ? 'rgba(34,197,94,0.85)'
+      : v < baselineVals[i] ? 'rgba(239,68,68,0.85)'
+      : 'rgba(148,163,184,0.7)');
+    const borders = colors.map(c => c.replace(/0\.\d+\)$/, '1)'));
+    return {
+      label: m + ' (vs baseline)',
+      data: values,
+      backgroundColor: colors,
+      borderColor: borders,
+      borderWidth: 1,
+    };
+  });
+  state.charts.push(new Chart(ctx, {
+    type: 'bar',
+    data: { labels: available, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e5e7eb' } },
+        title: { display: true, text: 'Overall metrics (green = nerkit improved, red = worsened vs opentext)', color: '#e5e7eb' } },
+      scales: {
+        x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+        y: { beginAtZero: true, max: 1, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }
+      }
+    }
+  }));
+}
+
+function drawPerLang(perLang) {
+  const ctx = document.getElementById('perLangChart');
+  if (!ctx) return;
+  const langs = perLang.map(p => langLabel(p.lang));
+  const modelCol = perLang[0].table.header[0];
+  const models = [...new Set(perLang.flatMap(p => p.table.rows.map(r => r[modelCol])))];
+  const metricKey = 'S-F1';
+  const baselineModel = models[0];
+  const baselineVals = perLang.map(pl => {
+    const row = pl.table.rows.find(r => r[modelCol] === baselineModel);
+    return row ? parseFloat(row[metricKey]) || 0 : 0;
+  });
+  const datasets = models.map((m, idx) => {
+    const values = perLang.map(pl => {
+      const row = pl.table.rows.find(r => r[modelCol] === m);
+      return row ? parseFloat(row[metricKey]) || 0 : 0;
+    });
+    if (idx === 0) {
+      return {
+        label: m + ' (baseline)',
+        data: values,
+        backgroundColor: 'rgba(148,163,184,0.7)',
+        borderColor: '#94a3b8',
+        borderWidth: 1,
+      };
+    }
+    const colors = values.map((v, i) =>
+      v > baselineVals[i] ? 'rgba(34,197,94,0.85)'
+      : v < baselineVals[i] ? 'rgba(239,68,68,0.85)'
+      : 'rgba(148,163,184,0.7)');
+    const borders = colors.map(c => c.replace(/0\.\d+\)$/, '1)'));
+    return {
+      label: m + ' (vs baseline)',
+      data: values,
+      backgroundColor: colors,
+      borderColor: borders,
+      borderWidth: 1,
+    };
+  });
+  state.charts.push(new Chart(ctx, {
+    type: 'bar',
+    data: { labels: langs, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#e5e7eb' } },
+        title: { display: true, text: 'Strict F1 by language (green = nerkit improved, red = worsened)', color: '#e5e7eb' } },
+      scales: {
+        x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+        y: { beginAtZero: true, max: 1, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }
+      }
+    }
+  }));
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+boot();
+</script>
+</body>
+</html>
