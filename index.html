@@ -64,6 +64,10 @@
   .badge { display: inline-block; padding: 2px 8px; border-radius: 999px;
     background: var(--panel2); border: 1px solid var(--border); font-size: 11px;
     color: var(--muted); margin-left: 8px; }
+  .badge-blind { background: rgba(239, 68, 68, 0.15); border-color: var(--bad);
+   color: var(--bad); font-weight: 600; }
+  .badge-open { background: rgba(34, 197, 94, 0.15); border-color: var(--good);
+   color: var(--good); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -172,16 +176,20 @@ function populateDates() {
     .filter(r => r.classifier === c)
     .sort((a, b) => b.date.localeCompare(a.date)); // latest first
   const sel = document.getElementById('date');
-  sel.innerHTML = dates.map(d => `<option value="${d.date}">${d.date_label}</option>`).join('');
-  sel.value = dates[0].date; // default latest
+  sel.innerHTML = dates.map(d => {
+    const tag = d.blind ? ' 🔒 Blind' : ' 🔓 Open';
+    return `<option value="${d.file}">${d.date_label}${tag}</option>`;
+  }).join('');
+  sel.value = dates[0].file; // default latest
 }
 
 async function loadSelected() {
   const c = document.getElementById('classifier').value;
-  const d = document.getElementById('date').value;
-  const entry = state.manifest.reports.find(r => r.classifier === c && r.date === d);
+  const f = document.getElementById('date').value;
+  const entry = state.manifest.reports.find(r => r.classifier === c && r.file === f);
   if (!entry) return;
-  document.getElementById('meta-badge').textContent = entry.file;
+  document.getElementById('meta-badge').textContent = entry.blind ? '🔒 Blind eval' : '🔓 Open eval';
+  document.getElementById('meta-badge').className = `badge ${entry.blind ? 'badge-blind' : 'badge-open'}`;
   try {
     const r = await fetch(entry.file, { cache: 'no-store' });
     const md = await r.text();

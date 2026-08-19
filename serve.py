@@ -11,7 +11,9 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 HERE = Path(__file__).parent
-PATTERN = re.compile(r"^(?P<classifier>.+?)_(?P<day>\d{1,2})(?P<mon>[A-Za-z]{3})(?P<year>\d{4})_Report\.md$")
+PATTERN = re.compile(
+    r"^(?P<classifier>.+?)_(?P<day>\d{1,2})(?P<mon>[A-Za-z]{3})(?P<year>\d{4})_(?:(?P<blind>Blind)_)?Report\.md$"
+)
 MONTHS = {m: i for i, m in enumerate(
     ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], start=1)}
 
@@ -26,11 +28,13 @@ def build_manifest() -> dict:
         if mon not in MONTHS:
             continue
         d = datetime(int(m.group("year")), MONTHS[mon], int(m.group("day")))
+        blind = m.group("blind") is not None
         entries.append({
             "file": p.name,
             "classifier": m.group("classifier"),
             "date": d.strftime("%Y-%m-%d"),
             "date_label": f"{int(m.group('day'))} {mon} {m.group('year')}",
+            "blind": blind,
         })
     entries.sort(key=lambda e: (e["classifier"], e["date"]))
     return {"reports": entries}

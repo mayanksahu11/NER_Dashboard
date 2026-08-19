@@ -14,19 +14,21 @@ Interactive dashboard for the `*_Report.md` NER benchmark reports in this folder
 ## Filename convention
 Reports must be named:
 ```
-<Classifier>_<D><Mon><YYYY>_Report.md
+<Classifier>_<D><Mon><YYYY>_Report.md          ← Open (non-blind) eval
+<Classifier>_<D><Mon><YYYY>_Blind_Report.md    ← Blind eval
 ```
 - **`<Classifier>`** — no spaces, e.g. `AllFullName`, `FirstName`, `LastName`. Becomes an entry in the Classifier dropdown.
 - **`<D>`** — day of month, 1 or 2 digits (`4`, `15`).
 - **`<Mon>`** — 3-letter English month, first letter uppercase: `Jan`, `Feb`, `Mar`, `Apr`, `May`, `Jun`, `Jul`, `Aug`, `Sep`, `Oct`, `Nov`, `Dec`.
 - **`<YYYY>`** — 4-digit year.
+- **`_Blind_`** — optional marker before `Report.md`. If present, the report is tagged as a blind evaluation (test data not visible to devs). Otherwise it's treated as open (non-blind).
 - Suffix must be `_Report.md`.
 
 Examples:
 ```
-AllFullName_4Aug2026_Report.md
-FirstName_15Sep2026_Report.md
-LastName_1Dec2026_Report.md
+AllFullName_4Aug2026_Report.md            ← open eval
+AllFullName_19Aug2026_Blind_Report.md     ← blind eval
+FirstName_15Sep2026_Report.md             ← open eval
 ```
 Files that don't match are silently skipped by `build_manifest.py` and won't appear in the dashboard.
 

@@ -4,7 +4,22 @@
       "file": "AllFullName_4Aug2026_Report.md",
       "classifier": "AllFullName",
       "date": "2026-08-04",
-      "date_label": "4 Aug 2026"
+      "date_label": "4 Aug 2026",
+      "blind": false
+    },
+    {
+      "file": "AllFullName_14Aug2026_Report.md",
+      "classifier": "AllFullName",
+      "date": "2026-08-14",
+      "date_label": "14 Aug 2026",
+      "blind": false
+    },
+    {
+      "file": "AllFullName_19Aug2026_Blind_Report.md",
+      "classifier": "AllFullName",
+      "date": "2026-08-19",
+      "date_label": "19 Aug 2026",
+      "blind": true
     }
   ]
 }
