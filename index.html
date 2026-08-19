@@ -311,9 +311,9 @@ function tableHtml(t, highlight) {
     'PAR': { label: 'Partial',  title: 'PAR — partial overlap with gold entity' },
     'SPU': { label: 'Spurious', title: 'SPU — predicted entity not present in gold' },
     'MIS': { label: 'Missed',   title: 'MIS — gold entity that was not predicted' },
-    'S-P': { label: 'S-P', title: 'Strict Precision' },
-    'S-R': { label: 'S-R', title: 'Strict Recall' },
-    'S-F1':{ label: 'S-F1', title: 'Strict F1' },
+    'S-P': { label: 'Strict Precision', title: 'Strict Precision' },
+    'S-R': { label: 'Strict Recall', title: 'Strict Recall' },
+    'S-F1':{ label: 'Strict F1', title: 'Strict F1 (harmonic mean of Precision & Recall)' },
     'P-P': { label: 'P-P', title: 'Partial Precision' },
     'P-R': { label: 'P-R', title: 'Partial Recall' },
     'P-F1':{ label: 'P-F1', title: 'Partial F1' },
@@ -383,9 +383,10 @@ function drawOverall(overall) {
       borderWidth: 1,
     };
   });
+  const metricLabels = { 'S-P': 'Strict Precision', 'S-R': 'Strict Recall', 'S-F1': 'Strict F1' };
   state.charts.push(new Chart(ctx, {
     type: 'bar',
-    data: { labels: available, datasets },
+    data: { labels: available.map(k => metricLabels[k] || k), datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { labels: { color: '#e5e7eb' } },
