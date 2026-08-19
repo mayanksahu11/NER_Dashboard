@@ -303,8 +303,9 @@ function render(rep, entry) {
 function tableHtml(t, highlight) {
   const headers = t.header;
   const numericCols = headers.map((h, i) => i > 0);
-  // Baseline = first data row (e.g. opentext). Compare subsequent rows to it.
-  const baseline = t.rows[0];
+  const modelCol = headers[0];
+  // Baseline = opentext row (by name), fallback to first row.
+  const baseline = t.rows.find(r => (r[modelCol] || '').toLowerCase() === 'opentext') || t.rows[0];
   const headerMeta = {
     'COR': { label: 'Correct',  title: 'COR — exact match with gold entity' },
     'PAR': { label: 'Partial',  title: 'PAR — partial overlap with gold entity' },
@@ -330,7 +331,7 @@ function tableHtml(t, highlight) {
     `<tr>${headers.map((h, i) => {
       const v = r[h] ?? '';
       let cls = '';
-      if (highlight && numericCols[i] && rowIdx > 0 && baseline) {
+      if (highlight && numericCols[i] && r !== baseline && baseline) {
         const num = parseFloat(v);
         const base = parseFloat(baseline[h]);
         if (!isNaN(num) && !isNaN(base) && num !== base) {
@@ -353,10 +354,13 @@ function drawOverall(overall) {
   const available = metrics.filter(m => overall.header.includes(m));
   const modelCol = overall.header[0];
   const models = overall.rows.map(r => r[modelCol]);
-  const baselineRow = overall.rows[0];
+  // Baseline = opentext (by name), fallback to first row
+  const baselineIdx = models.findIndex(m => m.toLowerCase() === 'opentext');
+  const baseRow = baselineIdx >= 0 ? baselineIdx : 0;
+  const baselineRow = overall.rows[baseRow];
   const baselineVals = available.map(k => parseFloat(baselineRow[k]) || 0);
   const datasets = models.map((m, idx) => {
-    if (idx === 0) {
+    if (idx === baseRow) {
       return {
         label: m + ' (baseline)',
         data: baselineVals,
@@ -401,7 +405,10 @@ function drawPerLang(perLang) {
   const modelCol = perLang[0].table.header[0];
   const models = [...new Set(perLang.flatMap(p => p.table.rows.map(r => r[modelCol])))];
   const metricKey = 'S-F1';
-  const baselineModel = models[0];
+  // Baseline = opentext (by name), fallback to first model
+  const baselineIdx = models.findIndex(m => m.toLowerCase() === 'opentext');
+  const baseIdx = baselineIdx >= 0 ? baselineIdx : 0;
+  const baselineModel = models[baseIdx];
   const baselineVals = perLang.map(pl => {
     const row = pl.table.rows.find(r => r[modelCol] === baselineModel);
     return row ? parseFloat(row[metricKey]) || 0 : 0;
@@ -411,7 +418,7 @@ function drawPerLang(perLang) {
       const row = pl.table.rows.find(r => r[modelCol] === m);
       return row ? parseFloat(row[metricKey]) || 0 : 0;
     });
-    if (idx === 0) {
+    if (idx === baseIdx) {
       return {
         label: m + ' (baseline)',
         data: values,
