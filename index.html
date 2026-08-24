@@ -68,6 +68,18 @@
    color: var(--bad); font-weight: 600; }
   .badge-open { background: rgba(34, 197, 94, 0.15); border-color: var(--good);
    color: var(--good); font-weight: 600; }
+  .badge-l2 { background: rgba(167, 139, 250, 0.15); border-color: var(--accent2);
+   color: var(--accent2); font-weight: 600; }
+  .l2-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .l2-actions { display: flex; gap: 8px; }
+  .l2-btn { background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; text-decoration: none;
+    display: inline-block; }
+  .l2-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .l2-frame-wrap { background: #fff; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--border); }
+  .l2-frame-wrap iframe { width: 100%; height: 900px; border: 0; display: block; background: #fff; }
+  .l2-hint { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
 </style>
 </head>
 <body>
@@ -276,6 +288,15 @@ function render(rep, entry) {
         <div>${tableHtml(rep.overall, true)}</div>
         <div><div class="chart-wrap"><canvas id="overallChart"></canvas></div></div>
       </div>
+    </div>`;
+  }
+
+  if (entry.model_comparison) {
+    const url = entry.model_comparison;
+    html += `<div class="card l2-card">
+      <h2><span>L2 · Model Comparison <span class="badge badge-l2">Deep dive</span></span></h2>
+      <p class="l2-hint">Side-by-side comparison of NER models for this evaluation date.</p>
+      <a class="l2-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open model comparison report ↗</a>
     </div>`;
   }
 

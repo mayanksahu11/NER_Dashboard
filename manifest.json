@@ -20,6 +20,14 @@
       "date": "2026-08-19",
       "date_label": "19 Aug 2026",
       "blind": true
+    },
+    {
+      "file": "AllFullName_24Aug2026_Blind_Report.md",
+      "classifier": "AllFullName",
+      "date": "2026-08-24",
+      "date_label": "24 Aug 2026",
+      "blind": true,
+      "model_comparison": "model_comparison/AllFullName_24Aug2026_Blind_ModelComparison.html"
     }
   ]
 }

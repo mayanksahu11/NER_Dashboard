@@ -18,6 +18,7 @@ MONTHS = {m: i for i, m in enumerate(
 
 def main() -> None:
     entries = []
+    mc_dir = HERE / "model_comparison"
     for p in sorted(HERE.glob("*_Report.md")):
         m = PATTERN.match(p.name)
         if not m:
@@ -29,13 +30,20 @@ def main() -> None:
             continue
         d = datetime(int(m.group("year")), MONTHS[mon], int(m.group("day")))
         blind = m.group("blind") is not None
-        entries.append({
+        entry = {
             "file": p.name,
             "classifier": m.group("classifier"),
             "date": d.strftime("%Y-%m-%d"),
             "date_label": f"{int(m.group('day'))} {mon} {m.group('year')}",
             "blind": blind,
-        })
+        }
+        # L2 layer: matching model comparison HTML, if any.
+        # Convention: model_comparison/<Classifier>_<D><Mon><YYYY>[_Blind]_ModelComparison.html
+        blind_tag = "_Blind" if blind else ""
+        mc_name = f"{m.group('classifier')}_{int(m.group('day'))}{mon}{m.group('year')}{blind_tag}_ModelComparison.html"
+        if (mc_dir / mc_name).exists():
+            entry["model_comparison"] = f"model_comparison/{mc_name}"
+        entries.append(entry)
     entries.sort(key=lambda e: (e["classifier"], e["date"]))
     out = HERE / "manifest.json"
     out.write_text(json.dumps({"reports": entries}, indent=2), encoding="utf-8")
